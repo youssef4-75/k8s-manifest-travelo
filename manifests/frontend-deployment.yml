@@ -15,13 +15,6 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: localhost:5000/travelo_frontend:latest
+        image: youssef475/travelo-frontend:latest
         ports:
         - containerPort: 80
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "250m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
