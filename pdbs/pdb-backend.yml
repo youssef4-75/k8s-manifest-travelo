@@ -1,0 +1,12 @@
+# pdb-backend.yml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: travelo-backend-pdb
+  namespace: travelo
+spec:
+  minAvailable: 1        # At least 1 pod must stay running
+  selector:
+    matchLabels:
+      app: travelo-backend
+

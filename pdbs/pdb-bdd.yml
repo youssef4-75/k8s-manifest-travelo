@@ -1,0 +1,11 @@
+# pdb-mysql.yml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: mysql-pdb
+  namespace: travelo
+spec:
+  maxUnavailable: 1      # Max 1 pod can be down at a time
+  selector:
+    matchLabels:
+      app: mysql
