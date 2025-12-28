@@ -4,17 +4,11 @@ metadata:
   name: travelo-ingress
   namespace: travelo
 spec:
+  ingressClassName: nginx
   rules:
-  - host: localhost
+  - host: travelo.local
     http:
       paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: travelo-frontend
-            port:
-              number: 80
       - path: /api
         pathType: Prefix
         backend:
@@ -22,3 +16,10 @@ spec:
             name: travelo-backend-service
             port:
               number: 8080
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: travelo-frontend-service
+            port:
+              number: 80

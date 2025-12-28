@@ -1,11 +1,5 @@
-# namespace.yml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: travelo
-
 ---
-# mysql-secret.yml
+# MySQL Secret
 apiVersion: v1
 kind: Secret
 metadata:
@@ -19,7 +13,7 @@ stringData:
   MYSQL_PASSWORD: travelo123
 
 ---
-# backend-configmap.yml
+# Backend ConfigMap
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -30,15 +24,31 @@ data:
   SPRING_DATASOURCE_USERNAME: "travelo"
 
 ---
-# mysql-statefulset.yml
-apiVersion: apps/v1
-kind: StatefulSet
+# MySQL Headless Service (for StatefulSet)
+apiVersion: v1
+kind: Service
 metadata:
   name: mysql-service
   namespace: travelo
 spec:
+  clusterIP: None
+  selector:
+    app: mysql
+  ports:
+  - port: 3306
+    targetPort: 3306
+    name: mysql
+
+---
+# MySQL StatefulSet
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql-statefulset
+  namespace: travelo
+spec:
   serviceName: mysql-service
-  replicas: 2
+  replicas: 1  # Changed from 2 to 1 - MySQL replication needs special config
   selector:
     matchLabels:
       app: mysql
@@ -53,6 +63,13 @@ spec:
         ports:
         - containerPort: 3306
           name: mysql
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
         env:
         - name: MYSQL_ROOT_PASSWORD
           valueFrom:
@@ -77,6 +94,7 @@ spec:
         volumeMounts:
         - name: mysql-storage
           mountPath: /var/lib/mysql
+        
         livenessProbe:
           exec:
             command:
@@ -87,6 +105,7 @@ spec:
           initialDelaySeconds: 30
           periodSeconds: 10
           timeoutSeconds: 5
+        
         readinessProbe:
           exec:
             command:
@@ -97,6 +116,19 @@ spec:
           initialDelaySeconds: 10
           periodSeconds: 10
           timeoutSeconds: 5
+        
+        startupProbe:
+          exec:
+            command:
+            - mysqladmin
+            - ping
+            - -h
+            - localhost
+          initialDelaySeconds: 0
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+        
   volumeClaimTemplates:
   - metadata:
       name: mysql-storage
@@ -107,22 +139,7 @@ spec:
           storage: 5Gi
 
 ---
-# mysql-service.yml
-apiVersion: v1
-kind: Service
-metadata:
-  name: mysql-service
-  namespace: travelo
-spec:
-  clusterIP: None
-  selector:
-    app: mysql
-  ports:
-  - port: 3306
-    targetPort: 3306
-
----
-# backend-deployment.yml
+# Backend Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -140,9 +157,17 @@ spec:
     spec:
       containers:
       - name: backend
-        image: localhost:5000/travelo_backend:latest
+        image: youssef475/travelo-backend:latest
         ports:
         - containerPort: 8080
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        
         env:
         - name: SPRING_DATASOURCE_URL
           valueFrom:
@@ -159,13 +184,40 @@ spec:
             secretKeyRef:
               name: mysql-secret
               key: MYSQL_PASSWORD
+        
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+          
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+
+        startupProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 0
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 30
 
 ---
-# backend-service.yml
+# Backend Service
 apiVersion: v1
 kind: Service
 metadata:
-  name: travelo-backend
+  name: travelo-backend-service
   namespace: travelo
 spec:
   type: ClusterIP
@@ -174,9 +226,10 @@ spec:
   ports:
   - port: 8080
     targetPort: 8080
+    name: http
 
 ---
-# frontend-deployment.yml
+# Frontend Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -197,9 +250,43 @@ spec:
         image: youssef475/travelo-frontend:latest
         ports:
         - containerPort: 80
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+          
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+
+        startupProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 0
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 20
 
 ---
-# frontend-service.yml
+# Frontend Service
 apiVersion: v1
 kind: Service
 metadata:
@@ -213,3 +300,33 @@ spec:
   - port: 80
     targetPort: 80
     nodePort: 30000
+    name: http
+
+---
+# Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: travelo-ingress
+  namespace: travelo
+spec:
+  rules:
+  - host: travelo.local
+    http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: travelo-backend-service
+            port:
+              number: 8080
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: travelo-frontend-service
+            port:
+              number: 80
+
+              
