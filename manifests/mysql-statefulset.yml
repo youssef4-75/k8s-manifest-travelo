@@ -44,6 +44,7 @@ spec:
         volumeMounts:
         - name: mysql-storage
           mountPath: /var/lib/mysql
+        
         livenessProbe:
           exec:
             command:
@@ -64,6 +65,16 @@ spec:
           initialDelaySeconds: 10
           periodSeconds: 10
           timeoutSeconds: 5
+        startupProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 0
+          periodSeconds: 10
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 30       # 30 failures * 10s = 5 min max startup time
+        
   volumeClaimTemplates:
   - metadata:
       name: mysql-storage

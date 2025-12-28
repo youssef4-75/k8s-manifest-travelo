@@ -1,4 +1,3 @@
-# pdb-backend.yml
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:

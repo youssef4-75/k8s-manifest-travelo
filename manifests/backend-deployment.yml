@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: backend
-        image: localhost:5000/travelo_backend:latest
+        image: youssef475/travelo-backend:latest
         ports:
         - containerPort: 8080
         env:
@@ -34,3 +34,33 @@ spec:
             secretKeyRef:
               name: mysql-secret
               key: MYSQL_PASSWORD
+                # Liveness Probe - checks if container is alive
+      - name: service   
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8080
+          initialDelaySeconds: 60    # Wait 60s before first check
+          periodSeconds: 10           # Check every 10s
+          timeoutSeconds: 5           # Timeout after 5s
+          successThreshold: 1         # 1 success = healthy
+          failureThreshold: 3         # 3 failures = restart container
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8080
+          initialDelaySeconds: 30    # Wait 30s before first check
+          periodSeconds: 5           # Check every 5s
+          timeoutSeconds: 3          # Timeout after 3s
+          successThreshold: 1        # 1 success = ready
+          failureThreshold: 3        # 3 failures = mark as not ready
+        startupProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 0
+          periodSeconds: 10
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 30       # 30 failures * 10s = 5 min max startup time
+        

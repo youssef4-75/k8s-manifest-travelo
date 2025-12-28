@@ -5,7 +5,7 @@ metadata:
   namespace: travelo
 spec:
   rules:
-  - host: travelo.local
+  - host: localhost
     http:
       paths:
       - path: /
