@@ -44,8 +44,7 @@ spec:
               key: MYSQL_PASSWORD
         
         livenessProbe:
-          httpGet:
-            path: /actuator/health/liveness
+          tcpSocket:
             port: 8080
           initialDelaySeconds: 60
           periodSeconds: 10
@@ -53,8 +52,7 @@ spec:
           failureThreshold: 3
           
         readinessProbe:
-          httpGet:
-            path: /actuator/health/readiness
+          tcpSocket:
             port: 8080
           initialDelaySeconds: 30
           periodSeconds: 5
@@ -62,8 +60,7 @@ spec:
           failureThreshold: 3
 
         startupProbe:
-          httpGet:
-            path: /actuator/health
+          tcpSocket:
             port: 8080
           initialDelaySeconds: 0
           periodSeconds: 10
